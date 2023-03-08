@@ -14,7 +14,7 @@
 module load anaconda
 
 # init virtual environment if needed
-# conda create -n toy_classification_env python=3.7
+conda create -n toy_classification_env python=3.7
 
 conda activate toy_classification_env # open the Python environment
 
