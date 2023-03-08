@@ -161,3 +161,4 @@ cython_debug/
 
 # flycheck
 *flycheck*.py
+.python-version
