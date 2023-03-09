@@ -146,14 +146,14 @@ def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, 
             """
             You need to make some changes here to make this function work.
             Specifically, you need to: 
-            TODO: Extract the input_ids, attention_mask, and labels from the batch; then send them to the device.
-            TODO: hen, pass the input_ids and attention_mask to the model to get the logits.
-            TODO: Then, compute the loss using the logits and the labels.
-            TODO: Then, call loss.backward() to compute the gradients.
-            TODO: Then, call optimizer.step()  to update the model parameters.
-            TODO: Then, call lr_scheduler.step() to update the learning rate.
-            TODO: Then, call optimizer.zero_grad() to reset the gradients for the next iteration.
-            TODO: Then, compute the accuracy using the logits and the labels.
+            DONE: Extract the input_ids, attention_mask, and labels from the batch; then send them to the device.
+            DONE: hen, pass the input_ids and attention_mask to the model to get the logits.
+            DONE: Then, compute the loss using the logits and the labels.
+            DONE: Then, call loss.backward() to compute the gradients.
+            DONE: Then, call optimizer.step()  to update the model parameters.
+            DONE: Then, call lr_scheduler.step() to update the learning rate.
+            DONE: Then, call optimizer.zero_grad() to reset the gradients for the next iteration.
+            DONE: Then, compute the accuracy using the logits and the labels.
             """
 
             input_ids = batch['input_ids'].to(device)
@@ -287,3 +287,23 @@ if __name__ == "__main__":
 
     test_accuracy = evaluate_model(pretrained_model, test_dataloader, args.device)
     print(f" - Average TEST metrics: accuracy={test_accuracy}")
+
+
+    writer.add_hparams(
+        hparam_dict={
+            'lr': args.lr,
+            'batch_size': args.batch_size,
+            'num_epochs': args.num_epochs,
+            'model': args.model,
+            'small_subset': args.small_subset,
+        },
+        metric_dict={
+            'hpram/accuracy/val': val_accuracy,
+            'hparam/accuracy/test': test_accuracy,
+
+        }
+    )
+
+
+    writer.flush()
+    writer.close()
