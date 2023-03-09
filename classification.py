@@ -102,7 +102,7 @@ def evaluate_model(model, dataloader, device):
     return dev_accuracy.compute()
 
 
-def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr, batch_per_epoch, writer):
+def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr, writer):
     """ Train a PyTorch Module
 
     :param torch.nn.Module mymodel: the model to be trained
@@ -173,7 +173,7 @@ def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, 
 
             # update metrics
             train_accuracy.add_batch(predictions=predictions.detach().cpu().numpy(), references=batch['labels'].detach().cpu().numpy())
-            writer.add_scalar('Loss/CrossEntropy', model_loss.item(), epoch * batch_per_epoch + i)
+            writer.add_scalar('Loss/CrossEntropy', model_loss.item(), epoch * len(train_dataloader) + i)
 
         # print evaluation metrics
         train_accuracy_value = train_accuracy.compute()
@@ -274,12 +274,10 @@ if __name__ == "__main__":
 
     print(" >>>>>>>>  Starting training ... ")
 
-
-    batch_per_epoch = int(len(train_dataloader) / args.batch_size)
     writer = SummaryWriter(comment=f"_{args.experiment}_lr={args.lr}_bs={args.batch_size}_nep={args.num_epochs}_smallsubset={args.small_subset}")
 
     # def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr):
-    train(pretrained_model, args.num_epochs, train_dataloader, validation_dataloader, args.device, args.lr, batch_per_epoch, writer)
+    train(pretrained_model, args.num_epochs, train_dataloader, validation_dataloader, args.device, args.lr, writer)
 
     # print the GPU memory usage just to make sure things are alright
     print_gpu_memory()
