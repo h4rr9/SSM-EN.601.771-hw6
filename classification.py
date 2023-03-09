@@ -298,8 +298,8 @@ if __name__ == "__main__":
             'small_subset': args.small_subset,
         },
         metric_dict={
-            'hpram/accuracy/val': val_accuracy,
-            'hparam/accuracy/test': test_accuracy,
+            'hpram/accuracy/val': val_accuracy['accuracy'],
+            'hparam/accuracy/test': test_accuracy['accuracy'],
 
         }
     )
