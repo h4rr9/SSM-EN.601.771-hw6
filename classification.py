@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from datasets import load_dataset
 import evaluate as evaluate
 from transformers import get_scheduler
@@ -101,7 +102,7 @@ def evaluate_model(model, dataloader, device):
     return dev_accuracy.compute()
 
 
-def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr):
+def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr, batch_per_epoch, writer):
     """ Train a PyTorch Module
 
     :param torch.nn.Module mymodel: the model to be trained
@@ -127,6 +128,7 @@ def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, 
     )
 
     loss = torch.nn.CrossEntropyLoss()
+
 
     for epoch in range(num_epochs):
 
@@ -170,15 +172,21 @@ def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, 
             predictions = torch.argmax(predictions, dim=1)
 
             # update metrics
-            train_accuracy.add_batch(predictions=predictions, references=batch['labels'])
+            train_accuracy.add_batch(predictions=predictions.detach().cpu().numpy(), references=batch['labels'].detach().cpu().numpy())
+            writer.add_scalar('Loss/CrossEntropy', model_loss.item(), epoch * batch_per_epoch + i)
 
         # print evaluation metrics
+        train_accuracy_value = train_accuracy.compute()
         print(f" ===> Epoch {epoch + 1}")
-        print(f" - Average training metrics: accuracy={train_accuracy.compute()}")
+        print(f" - Average training metrics: accuracy={train_accuracy_value}")
 
         # normally, validation would be more useful when training for many epochs
         val_accuracy = evaluate_model(mymodel, validation_dataloader, device)
         print(f" - Average validation metrics: accuracy={val_accuracy}")
+
+
+        writer.add_scalar('Accuracy/Train', train_accuracy_value['accuracy'], epoch)
+        writer.add_scalar('Accuracy/Val', val_accuracy['accuracy'], epoch)
 
 
 def pre_process(model_name, batch_size, device, small_subset=False):
@@ -266,8 +274,12 @@ if __name__ == "__main__":
 
     print(" >>>>>>>>  Starting training ... ")
 
+
+    batch_per_epoch = int(len(train_dataloader) / args.batch_size)
+    writer = SummaryWriter(comment=args.experiment)
+
     # def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr):
-    train(pretrained_model, args.num_epochs, train_dataloader, validation_dataloader, args.device, args.lr)
+    train(pretrained_model, args.num_epochs, train_dataloader, validation_dataloader, args.device, args.lr, batch_per_epoch, writer)
 
     # print the GPU memory usage just to make sure things are alright
     print_gpu_memory()

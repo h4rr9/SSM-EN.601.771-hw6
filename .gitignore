@@ -162,3 +162,7 @@ cython_debug/
 # flycheck
 *flycheck*.py
 .python-version
+
+# runs
+runs/
+runs/*
