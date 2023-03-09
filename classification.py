@@ -274,7 +274,7 @@ if __name__ == "__main__":
 
     print(" >>>>>>>>  Starting training ... ")
 
-    writer = SummaryWriter(comment=f"_{args.experiment}_lr={args.lr}_bs={args.batch_size}_nep={args.num_epochs}_smallsubset={args.small_subset}")
+    writer = SummaryWriter(comment=f"_{args.experiment}_model={args.model}_lr={args.lr}_bs={args.batch_size}_nep={args.num_epochs}_smallsubset={args.small_subset}")
 
     # def train(mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr):
     train(pretrained_model, args.num_epochs, train_dataloader, validation_dataloader, args.device, args.lr, writer)
