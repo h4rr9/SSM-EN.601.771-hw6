@@ -1,11 +1,12 @@
 import torch
 from torch.utils.data import DataLoader
+import torch.nn as nn
 from transformers import AutoTokenizer
 from torch.utils.tensorboard import SummaryWriter
 from datasets import load_dataset
 import evaluate as evaluate
 from transformers import get_scheduler
-from transformers import AutoModelForSequenceClassification
+from transformers import T5EncoderModel
 import argparse
 import subprocess
 
@@ -57,17 +58,15 @@ class BoolQADataset(torch.utils.data.Dataset):
         """
 
         passage = str(self.passages[index])
-        question = self.questions[index]
+        question = str(self.questions[index])
 
         answer = self.answers[index]
 
-        # this is input encoding for your model. Note, question comes first since we are doing question answering
-        # and we don't wnt it to be truncated if the passage is too long
-        input_encoding = question + " [SEP] " + passage
-
         # encode_plus will encode the input and return a dictionary of tensors
-        encoded_review = self.tokenizer.encode_plus(
-            input_encoding,
+        input = "question: " + question + ". " + "context: " + passage
+
+        encoder_review = self.tokenizer.encode_plus(
+            input,
             add_special_tokens=True,
             max_length=self.max_len,
             return_token_type_ids=False,
@@ -78,15 +77,27 @@ class BoolQADataset(torch.utils.data.Dataset):
         )
 
         return {
-            "input_ids": encoded_review["input_ids"][
+            "encoder_ids": encoder_review["input_ids"][
                 0
             ],  # we only have one example in the batch
-            "attention_mask": encoded_review["attention_mask"][0],
+            "encoder_attention_mask": encoder_review["attention_mask"][0],
             # attention mask tells the model where tokens are padding
-            "labels": torch.tensor(
-                answer, dtype=torch.long
-            ),  # labels are the answers (yes/no)
+            "labels": torch.tensor(answer, dtype=torch.long),
         }
+
+
+class T5Classifier(nn.Module):
+    def __init__(self, model_name):
+        super().__init__()
+        assert "t5" in model_name, f"Expected T5 model, got {model_name}"
+
+        self.t5 = T5EncoderModel.from_pretrained(model_name)
+        self.fc = nn.Linear(self.t5.config.d_model, 2)
+
+    def forward(self, *args, **kwargs):
+        outputs = self.t5(*args, **kwargs)
+        outputs_reduced = outputs.last_hidden_state[:, 0, :]
+        return self.fc(outputs_reduced)
 
 
 def evaluate_model(model, dataloader, device):
@@ -103,12 +114,12 @@ def evaluate_model(model, dataloader, device):
     model.eval()
 
     for batch in dataloader:
-        input_ids = batch["input_ids"].to(device)
-        attention_mask = batch["attention_mask"].to(device)
-        output = model(input_ids=input_ids, attention_mask=attention_mask)
+        encoder_ids = batch["encoder_ids"].to(device)
+        encoder_attention = batch["encoder_attention_mask"].to(device)
+        predictions = model(input_ids=encoder_ids, attention_mask=encoder_attention)
 
-        predictions = output.logits
-        predictions = torch.argmax(predictions, dim=1)
+        predictions = torch.argmax(predictions, dim=-1)
+
         dev_accuracy.add_batch(predictions=predictions, references=batch["labels"])
 
     # compute and return metrics
@@ -116,7 +127,13 @@ def evaluate_model(model, dataloader, device):
 
 
 def train(
-    mymodel, num_epochs, train_dataloader, validation_dataloader, device, lr, writer
+    mymodel,
+    num_epochs,
+    train_dataloader,
+    validation_dataloader,
+    device,
+    lr,
+    writer,
 ):
     """Train a PyTorch Module
 
@@ -168,12 +185,16 @@ def train(
             DONE: Then, compute the accuracy using the logits and the labels.
             """
 
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
+            encoder_ids = batch["encoder_ids"].to(device)
+            encoder_attention_mask = batch["encoder_attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            output = mymodel(input_ids=input_ids, attention_mask=attention_mask)
-            predictions = output.logits
+            output = mymodel(
+                input_ids=encoder_ids,
+                attention_mask=encoder_attention_mask,
+            )
+
+            predictions = output
             model_loss = loss(predictions, labels)
 
             model_loss.backward()
@@ -185,8 +206,7 @@ def train(
 
             # update metrics
             train_accuracy.add_batch(
-                predictions=predictions.detach().cpu().numpy(),
-                references=batch["labels"].detach().cpu().numpy(),
+                predictions=predictions, references=labels.cpu().detach()
             )
             writer.add_scalar(
                 "Loss/CrossEntropy",
@@ -195,15 +215,15 @@ def train(
             )
 
         # print evaluation metrics
-        train_accuracy_value = train_accuracy.compute()
+        train_accuracy = train_accuracy.compute()
         print(f" ===> Epoch {epoch + 1}")
-        print(f" - Average training metrics: accuracy={train_accuracy_value}")
+        print(f" - Average training metrics: exact_match={train_accuracy}")
 
         # normally, validation would be more useful when training for many epochs
         val_accuracy = evaluate_model(mymodel, validation_dataloader, device)
         print(f" - Average validation metrics: accuracy={val_accuracy}")
 
-        writer.add_scalar("Accuracy/Train", train_accuracy_value["accuracy"], epoch)
+        writer.add_scalar("Accuracy/Train", train_accuracy["accuracy"], epoch)
         writer.add_scalar("Accuracy/Val", val_accuracy["accuracy"], epoch)
 
 
@@ -231,7 +251,7 @@ def pre_process(model_name, batch_size, device, small_subset=False):
     max_len = 128
 
     print("Loading the tokenizer...")
-    mytokenizer = AutoTokenizer.from_pretrained(model_name)
+    mytokenizer = AutoTokenizer.from_pretrained(model_name, model_max_length=max_len)
 
     print("Loding the data into DS...")
     train_dataset = BoolQADataset(
@@ -263,9 +283,7 @@ def pre_process(model_name, batch_size, device, small_subset=False):
 
     # from Hugging Face (transformers), read their documentation to do this.
     print("Loading the model ...")
-    pretrained_model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, num_labels=2
-    )
+    pretrained_model = T5Classifier(model_name)
 
     print("Moving model to device ..." + str(device))
     pretrained_model.to(device)
