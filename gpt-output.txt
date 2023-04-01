@@ -1,0 +1,61 @@
+Ground Truth : No || Response : Yes
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : No || Response : No
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : No || Response : No
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : No || Response : No
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : Yes
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : No || Response : No
+
+Ground Truth : Yes || Response : No
+
+Ground Truth : Yes || Response : Yes
+
+Accuracy = 17 / 30 = 0.57
